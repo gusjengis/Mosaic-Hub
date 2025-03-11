@@ -1,13 +1,27 @@
-use plinth_core::plinth_app::PlinthApp;
+use js_sys::Uint8Array;
+use mosaic_model::log::Log;
 use plinth_util_temp::logging::log;
+use wasm_bindgen::prelude::wasm_bindgen;
 
-pub struct MyApp {}
+#[wasm_bindgen]
+pub struct MyApp {
+    logs: Vec<Log>,
+}
 
-impl PlinthApp for MyApp {
-    fn init(&mut self) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            log("Hello from Rust!");
+#[wasm_bindgen]
+impl MyApp {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self { logs: vec![] }
+    }
+
+    pub fn receive_logs(&mut self, body: String) {
+        for log in body.lines() {
+            self.logs.push(Log::from_http_body(log.to_string()));
+        }
+
+        for element in &self.logs {
+            log(format!("{}", element).as_str());
         }
     }
 }

@@ -1,8 +1,8 @@
 import { render } from "solid-js/web";
+import { loadLogs } from "./fetch.tsx";
 
 export function main() {
-	console.log("Hello from Typescript!");
-	window.wasmBindings.print_from_rust("Wasm loaded. Hello from WASM!");
+	loadLogs();
 
 	function App() {
 		return (
