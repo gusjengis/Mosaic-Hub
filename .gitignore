@@ -1,0 +1,10 @@
+/target
+/dist
+/jsdist
+/node_modules
+/.helix
+package-lock.json
+flake.lock
+Cargo.lock
+.DS_Store
+vite.config.js

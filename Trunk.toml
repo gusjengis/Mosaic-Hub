@@ -1,0 +1,3 @@
+[build]
+inject_scripts = true
+

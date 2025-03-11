@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2016", 
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "module": "commonjs", 
+    "rootDir": "./src/web/ts", 
+    "outDir": "./jsdist/js", 
+    "esModuleInterop": true, 
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
