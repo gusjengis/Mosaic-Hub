@@ -1,7 +1,10 @@
 use wgpu::{
-    Color, CommandEncoderDescriptor, FragmentState, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor,
-    ShaderSource, StoreOp, TextureViewDescriptor, VertexState,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, Buffer, BufferBindingType, BufferDescriptor, BufferUsages, Color,
+    CommandEncoderDescriptor, FragmentState, LoadOp, Operations, PipelineLayoutDescriptor,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    ShaderModuleDescriptor, ShaderSource, StoreOp, TextureViewDescriptor, VertexBufferLayout,
+    VertexFormat, VertexState, VertexStepMode,
 };
 
 use crate::my_app::MyApp;
@@ -11,41 +14,45 @@ use std::borrow::Cow;
 
 impl PlinthRenderer for MyApp {
     fn create_pipeline(&mut self, gfx: &mut Graphics) -> RenderPipeline {
-        let device = &gfx.device;
-        let swap_chain_format = gfx.surface_config.format;
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: None,
-            source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("shaders/shader.wgsl"))),
-        });
+        // Initialize shader
+        self.gpu_resources.init_rect_shader(gfx);
 
-        device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: None,
-            layout: None,
-            vertex: VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(swap_chain_format.into())],
-                compilation_options: Default::default(),
-            }),
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview: None,
-            cache: None,
-        })
+        // Initialize color buffer first (needed for pipeline layout)
+        self.gpu_resources.init_color_buffer(
+            vec![
+                1.0, 0.0, 0.0, 1.0, // Red (index 0)
+                0.0, 1.0, 0.0, 1.0, // Green (index 1)
+                0.0, 0.0, 1.0, 1.0, // Blue (index 2)
+                1.0, 0.0, 1.0, 1.0, // Purple (index 3)
+            ],
+            gfx,
+        );
+
+        // Initialize rectangle buffer with multiple rectangles
+        // Each rectangle has 5 values: x, y, width, height, color_index
+        self.gpu_resources.init_rect_buffer(
+            vec![
+                -0.5, -0.5, 0.4, 0.4, 0.0, // Rectangle 1 (red)
+                0.5, -0.5, 0.4, 0.4, 1.0, // Rectangle 2 (green)
+                0.5, 0.5, 0.4, 0.4, 2.0, // Rectangle 3 (blue)
+                -0.5, 0.5, 0.4, 0.4, 3.0, // Rectangle 4 (purple)
+            ],
+            gfx,
+        );
+
+        // Initialize index buffer
+        self.gpu_resources.init_index_buffer(gfx);
+
+        // Initialize pipeline layout and pipeline
+        self.gpu_resources.init_rect_pipeline_layout(gfx);
+        self.gpu_resources.init_rect_pipeline(gfx)
     }
 
     fn render(&mut self, gfx: &mut Graphics) {
         let frame = gfx
             .surface
             .get_current_texture()
-            .expect("Failed to aquire next swap chain texture.");
+            .expect("Failed to acquire next swap chain texture.");
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
@@ -68,9 +75,28 @@ impl PlinthRenderer for MyApp {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+
             r_pass.set_pipeline(&gfx.render_pipelines[0]);
-            r_pass.draw(0..3, 0..1);
-        } // `r_pass` dropped here
+            r_pass.set_bind_group(
+                0,
+                self.gpu_resources.color_bind_group.as_ref().unwrap(),
+                &[],
+            );
+            r_pass.set_vertex_buffer(
+                0,
+                self.gpu_resources.rect_buffer.as_ref().unwrap().slice(..),
+            );
+            r_pass.set_index_buffer(
+                self.gpu_resources.index_buffer.as_ref().unwrap().slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            // Draw indexed instances - one for each rectangle
+            r_pass.draw_indexed(
+                0..self.gpu_resources.index_count.unwrap(),
+                0,
+                0..self.gpu_resources.rect_count.unwrap(),
+            );
+        }
 
         gfx.queue.submit(Some(encoder.finish()));
         frame.present();

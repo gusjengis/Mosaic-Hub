@@ -22,8 +22,11 @@ lazy_static = "1.5.0"
 plinth-core = "0.1.0"
 plinth-util-temp = "0.1.0"
 mosaic-model = "0.1.1"
+bytemuck = "1.22.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"
 console_log = "1.0"
 wasm-bindgen-futures = "0.4.49"
+
+

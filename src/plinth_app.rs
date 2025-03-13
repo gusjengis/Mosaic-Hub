@@ -6,10 +6,10 @@ use crate::my_app::MyApp;
 
 impl PlinthApp for MyApp {
     fn init(&mut self) {
-        let test_log = Log {
-            label: "Test".to_string(),
-            timestamp: 0,
-        };
-        log(format!("{}", test_log).as_str());
+        // let test_log = Log {
+        //     label: "Test".to_string(),
+        //     timestamp: 0,
+        // };
+        // log(format!("{}", test_log).as_str());
     }
 }

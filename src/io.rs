@@ -2,7 +2,7 @@ use js_sys::Uint8Array;
 use plinth_util_temp::logging::log;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::APP_INSTANCE;
+use crate::{app, app_mut, APP_INSTANCE};
 
 #[wasm_bindgen]
 pub fn receive_body(body_bytes: Uint8Array) {
@@ -16,11 +16,5 @@ pub fn receive_body(body_bytes: Uint8Array) {
         }
     };
 
-    unsafe {
-        if let Some(app) = &APP_INSTANCE {
-            app.borrow_mut().receive_logs(body);
-        } else {
-            eprintln!("❌ ERROR: APP_INSTANCE is None!");
-        }
-    }
+    app_mut().unwrap().receive_logs(body);
 }

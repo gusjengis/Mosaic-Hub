@@ -1,18 +1,20 @@
 use js_sys::Uint8Array;
 use mosaic_model::log::Log;
 use plinth_util_temp::logging::log;
-use wasm_bindgen::prelude::wasm_bindgen;
 
-#[wasm_bindgen]
+use crate::gpu_resources::GPU_Resources;
+
 pub struct MyApp {
     logs: Vec<Log>,
+    pub gpu_resources: GPU_Resources,
 }
 
-#[wasm_bindgen]
 impl MyApp {
-    #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-        Self { logs: vec![] }
+        Self {
+            logs: vec![],
+            gpu_resources: GPU_Resources::new(),
+        }
     }
 
     pub fn receive_logs(&mut self, body: String) {
@@ -20,8 +22,10 @@ impl MyApp {
             self.logs.push(Log::from_http_body(log.to_string()));
         }
 
-        for element in &self.logs {
-            log(format!("{}", element).as_str());
-        }
+        // for element in &self.logs {
+        //     log(format!("{}", element).as_str());
+        // }
     }
+
+    fn convert_logs_to_buffs() {}
 }
