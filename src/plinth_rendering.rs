@@ -15,15 +15,15 @@ use plinth_core::graphics::Graphics;
 use plinth_core::plinth_app::PlinthRenderer;
 use std::borrow::Cow;
 use web_sys::window;
-
+static rectangles: u32 = 10000;
 fn gen_rand_rects() -> Vec<f32> {
     let mut res = vec![];
-    for i in 0..1 {
+    for i in 0..rectangles {
         res.push(random() as f32 * 2.0 - 1.0);
         res.push(random() as f32 * 2.0 - 1.0);
         res.push(random() as f32);
         res.push(random() as f32);
-        res.push(random() as f32 * 1.0);
+        res.push(random() as f32 * rectangles as f32);
     }
 
     res
@@ -31,7 +31,7 @@ fn gen_rand_rects() -> Vec<f32> {
 
 fn gen_rand_colors() -> Vec<f32> {
     let mut res = vec![];
-    for i in 0..1 {
+    for i in 0..rectangles {
         res.push(random() as f32);
         res.push(random() as f32);
         res.push(random() as f32);
@@ -83,7 +83,6 @@ impl PlinthRenderer for MyApp {
             gfx.queue
                 .write_buffer(rect_buffer, 0, bytemuck::cast_slice(&new_rect_data));
         }
-        // log("frame");
         let frame = gfx
             .surface
             .get_current_texture()

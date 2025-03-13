@@ -7,7 +7,7 @@ use crate::my_app::MyApp;
 impl PlinthApp for MyApp {
     fn before_render(&mut self) {
         let now = now();
-        log(format!("Frame Interval: {}", now - self.frame_start).as_str());
+        // log(format!("Frame Interval: {}", now - self.frame_start).as_str());
         self.frame_start = now;
     }
 
