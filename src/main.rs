@@ -4,6 +4,7 @@ use my_app::MyApp;
 use plinth_core::graphics::Rc;
 use std::cell::RefCell;
 
+mod camera;
 mod global_app;
 mod gpu_resources;
 mod io;

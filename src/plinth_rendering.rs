@@ -46,27 +46,27 @@ impl PlinthRenderer for MyApp {
         self.gpu_resources.init_rect_shader(gfx);
 
         // Initialize color buffer first (needed for pipeline layout)
-        self.gpu_resources.init_color_buffer(gen_rand_colors(), gfx);
-        // vec![
-        //     1.0, 0.0, 0.0, 1.0, // Red (index 0)
-        //     0.0, 1.0, 0.0, 1.0, // Green (index 1)
-        //     0.0, 0.0, 1.0, 1.0, // Blue (index 2)
-        //     1.0, 0.0, 1.0, 1.0, // Purple (index 3)
-        // ],
-        // gfx,
-        // );
+        self.gpu_resources.init_color_buffer(
+            vec![
+                1.0, 0.0, 0.0, 1.0, // Red (index 0)
+                0.0, 1.0, 0.0, 1.0, // Green (index 1)
+                0.0, 0.0, 1.0, 1.0, // Blue (index 2)
+                0.7, 0.0, 1.0, 1.0, // Purple (index 3)
+            ],
+            gfx,
+        );
 
         // Initialize rectangle buffer with multiple rectangles
         // Each rectangle has 5 values: x, y, width, height, color_index
-        self.gpu_resources.init_rect_buffer(gen_rand_rects(), gfx);
-        // vec![
-        //     -0.5, -0.5, 0.4, 0.4, 0.0, // Rectangle 1 (red)
-        //     0.5, -0.5, 0.4, 0.4, 1.0, // Rectangle 2 (green)
-        //     0.5, 0.5, 0.4, 0.4, 2.0, // Rectangle 3 (blue)
-        //     -0.5, 0.5, 0.4, 0.4, 3.0, // Rectangle 4 (purple)
-        // ],
-        // gfx,
-        // );
+        self.gpu_resources.init_rect_buffer(
+            vec![
+                -0.5, -0.5, 0.4, 0.4, 0.0, // Rectangle 1 (red)
+                0.5, -0.5, 0.4, 0.4, 1.0, // Rectangle 2 (green)
+                0.5, 0.5, 0.4, 0.4, 2.0, // Rectangle 3 (blue)
+                -0.5, 0.5, 0.4, 0.4, 3.0, // Rectangle 4 (purple)
+            ],
+            gfx,
+        );
 
         // Initialize index buffer
         self.gpu_resources.init_index_buffer(gfx);

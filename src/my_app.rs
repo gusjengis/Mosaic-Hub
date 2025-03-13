@@ -2,12 +2,13 @@ use js_sys::Uint8Array;
 use mosaic_model::log::Log;
 use plinth_util::logging::log;
 
-use crate::gpu_resources::GPU_Resources;
+use crate::{camera::Camera, gpu_resources::GPU_Resources};
 
 pub struct MyApp {
     pub logs: Vec<Log>,
     pub gpu_resources: GPU_Resources,
     pub frame_start: f64,
+    pub camera: Camera,
 }
 
 impl MyApp {
@@ -16,6 +17,7 @@ impl MyApp {
             logs: vec![],
             gpu_resources: GPU_Resources::new(),
             frame_start: 0.0,
+            camera: Camera::new(),
         }
     }
 
