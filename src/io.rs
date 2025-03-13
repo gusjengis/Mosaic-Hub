@@ -1,8 +1,7 @@
+use crate::global_app::app_mut;
 use js_sys::Uint8Array;
-use plinth_util_temp::logging::log;
+use plinth_util::logging::log;
 use wasm_bindgen::prelude::wasm_bindgen;
-
-use crate::{app, app_mut, APP_INSTANCE};
 
 #[wasm_bindgen]
 pub fn receive_body(body_bytes: Uint8Array) {

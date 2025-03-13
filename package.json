@@ -1,5 +1,5 @@
 {
-  "name": "plinth",
+  "name": "mosaic-hub",
   "version": "1.0.0",
   "description": "This is a template repository to get started with **[WGPU](https://wgpu.rs/) (24.0.1)** + **[Winit](https://github.com/rust-windowing/winit) (0.30.8)**.",
   "main": "index.js",

@@ -10,6 +10,8 @@ use wgpu::{
     VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 
+// This is where we store and initialize all of the freaky-ahh wgpu resources that the render pipeline needs to run.
+
 pub struct GPU_Resources {
     pub rect_shader: Option<wgpu::ShaderModule>,
     pub rect_buffer: Option<wgpu::Buffer>,
@@ -141,7 +143,7 @@ impl GPU_Resources {
         self.color_bind_group_layout = Some(color_bind_group_layout);
     }
 
-    pub(crate) fn init_rect_pipeline_layout(&mut self, gfx: &mut Graphics) {
+    pub fn init_rect_pipeline_layout(&mut self, gfx: &mut Graphics) {
         // Make sure color_bind_group_layout is initialized
         if self.color_bind_group_layout.is_none() {
             panic!("Color bind group layout must be initialized before pipeline layout");
@@ -156,7 +158,7 @@ impl GPU_Resources {
         ));
     }
 
-    pub(crate) fn init_rect_pipeline(&self, gfx: &mut Graphics) -> RenderPipeline {
+    pub fn init_rect_pipeline(&self, gfx: &mut Graphics) -> RenderPipeline {
         let shader = self.rect_shader.as_ref().unwrap();
         let pipeline_layout = self.rect_pipeline_layout.as_ref().unwrap();
 
