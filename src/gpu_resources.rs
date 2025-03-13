@@ -6,12 +6,13 @@ use wgpu::{
     BindGroupLayoutEntry, BindingResource, Buffer, BufferBindingType, BufferDescriptor,
     BufferUsages, Color, CommandEncoderDescriptor, FragmentState, LoadOp, Operations,
     PipelineLayoutDescriptor, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, StoreOp, TextureViewDescriptor,
-    VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, StoreOp,
+    TextureViewDescriptor, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 
-// This is where we store and initialize all of the freaky-ahh wgpu resources that the render pipeline needs to run.
+use crate::camera::Camera;
 
+// This is where we store and initialize all of the freaky-ahh wgpu resources that the render pipeline needs to run.
 pub struct GPU_Resources {
     pub rect_shader: Option<wgpu::ShaderModule>,
     pub rect_buffer: Option<wgpu::Buffer>,
@@ -20,6 +21,11 @@ pub struct GPU_Resources {
     pub index_count: Option<u32>,
     pub color_buffer: Option<wgpu::Buffer>,
     pub color_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    pub camera_buffer: Option<wgpu::Buffer>,
+    pub camera_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    pub camera_bind_group: Option<wgpu::BindGroup>,
+    pub combined_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    pub combined_bind_group: Option<wgpu::BindGroup>,
     pub color_bind_group: Option<wgpu::BindGroup>,
     pub rect_pipeline_layout: Option<wgpu::PipelineLayout>,
 }
@@ -35,6 +41,11 @@ impl GPU_Resources {
             color_buffer: None,
             color_bind_group_layout: None,
             color_bind_group: None,
+            camera_buffer: None,
+            camera_bind_group_layout: None,
+            camera_bind_group: None,
+            combined_bind_group_layout: None,
+            combined_bind_group: None,
             rect_pipeline_layout: None,
         }
     }
@@ -143,16 +154,141 @@ impl GPU_Resources {
         self.color_bind_group_layout = Some(color_bind_group_layout);
     }
 
+    pub fn init_camera_buffer(&mut self, camera: &Camera, gfx: &mut Graphics) {
+        let device = &gfx.device;
+
+        // Get camera data as f32 array using the to_slice method
+        let camera_data = camera.to_slice();
+
+        // Create the camera uniform buffer
+        let camera_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("Camera Uniform Buffer"),
+            size: std::mem::size_of::<[f32; 4]>() as u64,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: true,
+        });
+
+        // Write the camera data to the buffer
+        {
+            let mut buffer_view = camera_buffer.slice(..).get_mapped_range_mut();
+            bytemuck::cast_slice_mut::<u8, [f32; 4]>(&mut buffer_view)
+                .copy_from_slice(&[camera_data]);
+        }
+        camera_buffer.unmap(); // Unmap after writing
+
+        // Create the bind group layout for the camera uniform
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Camera Bind Group Layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
+
+        // Create the bind group for the camera uniform
+        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Camera Bind Group"),
+            layout: &camera_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        // Store the camera buffer and bind group
+        self.camera_buffer = Some(camera_buffer);
+        self.camera_bind_group_layout = Some(camera_bind_group_layout);
+        self.camera_bind_group = Some(camera_bind_group);
+    }
+
+    pub fn update_camera_buffer(&mut self, camera: &Camera, gfx: &mut Graphics) {
+        if let Some(camera_buffer) = &self.camera_buffer {
+            // Get camera data as f32 array using the to_slice method
+            let camera_data = camera.to_slice();
+
+            gfx.queue
+                .write_buffer(camera_buffer, 0, bytemuck::cast_slice(&[camera_data]));
+        }
+    }
+
+    pub fn init_combined_bind_group(&mut self, gfx: &mut Graphics) {
+        // Make sure both color and camera bind group layouts are initialized
+        if self.color_bind_group_layout.is_none() || self.camera_bind_group_layout.is_none() {
+            panic!("Color and camera bind group layouts must be initialized before combined bind group");
+        }
+
+        let device = &gfx.device;
+
+        // Create a combined bind group layout that includes both color and camera bindings
+        let combined_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Combined Bind Group Layout"),
+                entries: &[
+                    // Color buffer binding (group 0, binding 0)
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // Camera uniform binding (group 0, binding 1)
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+
+        // Create the combined bind group
+        let combined_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Combined Bind Group"),
+            layout: &combined_bind_group_layout,
+            entries: &[
+                // Color buffer binding
+                BindGroupEntry {
+                    binding: 0,
+                    resource: self.color_buffer.as_ref().unwrap().as_entire_binding(),
+                },
+                // Camera uniform binding
+                BindGroupEntry {
+                    binding: 1,
+                    resource: self.camera_buffer.as_ref().unwrap().as_entire_binding(),
+                },
+            ],
+        });
+
+        // Store the combined bind group and layout
+        self.combined_bind_group_layout = Some(combined_bind_group_layout);
+        self.combined_bind_group = Some(combined_bind_group);
+    }
+
     pub fn init_rect_pipeline_layout(&mut self, gfx: &mut Graphics) {
-        // Make sure color_bind_group_layout is initialized
-        if self.color_bind_group_layout.is_none() {
-            panic!("Color bind group layout must be initialized before pipeline layout");
+        // Make sure combined bind group layout is initialized
+        if self.combined_bind_group_layout.is_none() {
+            panic!("Combined bind group layout must be initialized before pipeline layout");
         }
 
         self.rect_pipeline_layout = Some(gfx.device.create_pipeline_layout(
             &PipelineLayoutDescriptor {
                 label: Some("Rectangle Pipeline Layout"),
-                bind_group_layouts: &[self.color_bind_group_layout.as_ref().unwrap()],
+                bind_group_layouts: &[self.combined_bind_group_layout.as_ref().unwrap()],
                 push_constant_ranges: &[],
             },
         ));

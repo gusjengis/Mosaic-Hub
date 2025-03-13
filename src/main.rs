@@ -7,6 +7,7 @@ use std::cell::RefCell;
 mod camera;
 mod global_app;
 mod gpu_resources;
+mod input_manager;
 mod io;
 mod my_app;
 mod plinth_app;
