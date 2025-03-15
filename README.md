@@ -1,21 +1,14 @@
-# Plinth Hello World!
-This repo is an example of my Plinth stack. I plan to use this as base for other projects of mine, trying to avoid repeating the same setup code.
+# Mosaic Hub
+This is the frontend for Mosaic, a personal project I'm using to collect autobiographical data.
+The idea is that I can make notes throughout my day as well as automatically collect all kinds of other data about what I'm doing, then view it all on a timeline interface.
 
-The idea is that I have a GPU rendered layer in the background with easy web tech UI floating on top of it. So that I can render massive amounts of data or complex 2D/3D renders without lag and still have the convenience of normal UI when I need it.
+There are several other repos that are involved in the infrastructure for this app (I guess that's why it's called Mosaic):
+[Mosaic-Model](https://github.com/gusjengis/Mosaic-Model)
+[Mosaic-Backend](https://github.com/gusjengis/Mosaic-Backend)
+[Mosaic-Android](https://github.com/gusjengis/Mosaic-Android)
 
-This is built on 4 other repos.
+There is also a postgres DB, which isn't a repo, and there is the whole Plinth stack, which I created just for this frontend.
 
-[Plinth-Web-Build](https://github.com/gusjengis/Plinth-Web-Build): Pretty nice build and dev server commmands.
+### Plinth
+This repo is another example of my Plinth stack. See [Plinth-Hello-World](https://github.com/gusjengis/Plinth-Hello-World) for a more basic example. I used that repo as my template when creating this one.
 
-[Plinth-Web](https://github.com/gusjengis/Plinth-Web): TSX and CSS that I want to be common between projects.
-
-[Plinth-Util](https://github.com/gusjengis/Plinth-Util): A place to accumulate useful non-application-specific functions. 
-
-[Plinth-Core](https://github.com/gusjengis/Plinth-Core): Nice interface that allows me to use winit and wgpu without having to look at the setup code.
-
-### The Stack
-Solid.js(TSX)
-wgpu(WASM/Rust)
-winit(WASM/Rust)
-
-Solid.js is only included in this repo, and could be easily swapped for any other UI framework. I just happen to want to try it.
