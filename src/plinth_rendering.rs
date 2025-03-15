@@ -12,6 +12,7 @@ use wgpu::{
 use crate::my_app::MyApp;
 use plinth_core::graphics::Graphics;
 use plinth_core::plinth_app::PlinthRenderer;
+use plinth_util::logging::log;
 use std::borrow::Cow;
 use web_sys::window;
 static rectangles: u32 = 100;
@@ -63,7 +64,10 @@ impl PlinthRenderer for MyApp {
 
         // Initialize rectangle buffer with multiple rectangles
         // Each rectangle has 5 values: x, y, width, height, color_index
-        self.gpu_resources.init_rect_buffer(gen_rand_rects(), gfx);
+        let log_rects = self.data.get_log_rects(&self.camera);
+
+        log(format!("logs: {}", log_rects.len() / 5).as_str());
+        self.gpu_resources.init_rect_buffer(log_rects, gfx);
         // vec![
         //     -0.5, -0.5, 0.4, 0.4, 0.0, // Rectangle 1 (red)
         //     0.5, -0.5, 0.4, 0.4, 1.0, // Rectangle 2 (green)
@@ -84,10 +88,14 @@ impl PlinthRenderer for MyApp {
     fn render(&mut self, gfx: &mut Graphics) {
         // // Update rectangle data directly in the existing buffer
         // if let Some(rect_buffer) = &self.gpu_resources.rect_buffer {
-        //     let new_rect_data = gen_rand_rects();
+        //     let new_rect_data = self.data.get_log_rects(&self.camera);
+        //     log(format!("logs: {}", new_rect_data.len() / 5).as_str());
         //     gfx.queue
         //         .write_buffer(rect_buffer, 0, bytemuck::cast_slice(&new_rect_data));
         // }
+        if !self.data.queue.is_empty() {
+            self.gpu_resources.process_queue(&mut self.data.queue, gfx);
+        }
 
         // Update camera data in the uniform buffer
         self.gpu_resources.update_camera_buffer(&self.camera, gfx);

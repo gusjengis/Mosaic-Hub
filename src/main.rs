@@ -5,7 +5,9 @@ use plinth_core::graphics::Rc;
 use std::cell::RefCell;
 
 mod camera;
+mod data;
 mod global_app;
+mod gpu_data;
 mod gpu_resources;
 mod input_manager;
 mod io;

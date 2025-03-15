@@ -10,7 +10,7 @@ use wgpu::{
     TextureViewDescriptor, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
 };
 
-use crate::camera::Camera;
+use crate::{camera::Camera, gpu_data::GPU_Data};
 
 // This is where we store and initialize all of the freaky-ahh wgpu resources that the render pipeline needs to run.
 pub struct GPU_Resources {
@@ -89,7 +89,7 @@ impl GPU_Resources {
         let rect_buffer = gfx.device.create_buffer(&BufferDescriptor {
             label: Some("Rectangle Buffer"),
             size: buffer_size,
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
             mapped_at_creation: true,
         });
 
@@ -346,5 +346,84 @@ impl GPU_Resources {
                 multiview: None,
                 cache: None,
             })
+    }
+
+    pub fn process_queue(
+        &mut self,
+        queue: &mut std::collections::VecDeque<crate::gpu_data::GPU_Data>,
+        gfx: &mut plinth_core::graphics::Graphics,
+    ) {
+        let mut rects = vec![];
+        while !queue.is_empty() {
+            match queue.pop_front().unwrap() {
+                GPU_Data::Rect { x, y, w, h, ci } => {
+                    rects.extend_from_slice(&[x, y, w, h, ci]);
+                }
+            }
+        }
+
+        if !rects.is_empty() {
+            self.append_rects(rects, gfx);
+        }
+    }
+
+    fn append_rects(&mut self, rects: Vec<f32>, gfx: &mut plinth_core::graphics::Graphics) {
+        // If we don't have a rect buffer yet, we can't append
+        if self.rect_buffer.is_none() {
+            return;
+        }
+
+        // Get the current rect count
+        let current_rect_count = self.rect_count.unwrap_or(0);
+
+        // Calculate the new rect count
+        let new_rects_count = rects.len() / 5; // Each rectangle has 5 values
+        let new_total_count = current_rect_count + (new_rects_count as u32);
+
+        // Check if we need to resize the buffer
+        if let Some(rect_buffer) = &self.rect_buffer {
+            let current_buffer_size = rect_buffer.size();
+            let needed_size = (new_total_count as usize * 5 * std::mem::size_of::<f32>()) as u64;
+
+            if needed_size > current_buffer_size {
+                // Need to create a larger buffer
+                let new_buffer = gfx.device.create_buffer(&BufferDescriptor {
+                    label: Some("Rectangle Buffer (Resized)"),
+                    // Allocate some extra space to avoid frequent resizing
+                    size: needed_size * 2,
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+                    mapped_at_creation: false,
+                });
+
+                // Create a command encoder to copy the old data
+                let mut encoder = gfx
+                    .device
+                    .create_command_encoder(&CommandEncoderDescriptor {
+                        label: Some("Buffer Copy Encoder"),
+                    });
+
+                // Copy existing data to the new buffer
+                encoder.copy_buffer_to_buffer(rect_buffer, 0, &new_buffer, 0, current_buffer_size);
+
+                // Submit the copy command
+                gfx.queue.submit(std::iter::once(encoder.finish()));
+
+                // Write the new data to the new buffer
+                let offset = (current_rect_count * 5 * std::mem::size_of::<f32>() as u32) as u64;
+                gfx.queue
+                    .write_buffer(&new_buffer, offset, bytemuck::cast_slice(&rects));
+
+                // Replace the old buffer with the new one
+                self.rect_buffer = Some(new_buffer);
+            } else {
+                // Buffer is large enough, just write the new data
+                let offset = (current_rect_count * 5 * std::mem::size_of::<f32>() as u32) as u64;
+                gfx.queue
+                    .write_buffer(rect_buffer, offset, bytemuck::cast_slice(&rects));
+            }
+        }
+
+        // Update the rect count
+        self.rect_count = Some(new_total_count);
     }
 }
