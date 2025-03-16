@@ -2,7 +2,7 @@ use mosaic_model::log::Log;
 use plinth_core::plinth_app::PlinthApp;
 use plinth_util::{logging::log, time::now};
 
-use crate::{input_manager::Input_Manager, my_app::MyApp};
+use crate::{gpu_data::GPU_Data, input_manager::Input_Manager, my_app::MyApp};
 
 impl PlinthApp for MyApp
 where

@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use plinth_core::graphics::Graphics;
+use plinth_util::logging::log;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, Buffer, BufferBindingType, BufferDescriptor,
@@ -101,7 +102,7 @@ impl GPU_Resources {
         rect_buffer.unmap(); // Unmap after writing
 
         // Store the GPU buffer in self
-        self.rect_count = Some((rect_data.len() / 5) as u32); // Each rectangle has 5 values
+        self.rect_count = Some((rect_data.len() / 6) as u32); // Each rectangle has 6 values
         self.rect_buffer = Some(rect_buffer);
     }
 
@@ -112,7 +113,7 @@ impl GPU_Resources {
         let color_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("Color Buffer"),
             size: (color_data.len() * std::mem::size_of::<f32>()) as u64,
-            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
             mapped_at_creation: true,
         });
 
@@ -300,7 +301,7 @@ impl GPU_Resources {
 
         // Define the vertex buffer layout
         let rect_buffer_layout = VertexBufferLayout {
-            array_stride: 5 * std::mem::size_of::<f32>() as u64, // x, y, w, h, color_index
+            array_stride: 6 * std::mem::size_of::<f32>() as u64, // x, y, w, h, color_index, fixed
             step_mode: VertexStepMode::Instance, // Use instance mode to draw multiple rectangles
             attributes: &[
                 // Position (x, y)
@@ -320,6 +321,12 @@ impl GPU_Resources {
                     format: VertexFormat::Float32,
                     offset: 4 * std::mem::size_of::<f32>() as u64,
                     shader_location: 2,
+                },
+                // Fixed (bool)
+                wgpu::VertexAttribute {
+                    format: VertexFormat::Float32,
+                    offset: 5 * std::mem::size_of::<f32>() as u64,
+                    shader_location: 3,
                 },
             ],
         };
@@ -354,22 +361,36 @@ impl GPU_Resources {
         gfx: &mut plinth_core::graphics::Graphics,
     ) {
         let mut rects = vec![];
+        let mut colors = vec![];
         while !queue.is_empty() {
             match queue.pop_front().unwrap() {
-                GPU_Data::Rect { x, y, w, h, ci } => {
-                    rects.extend_from_slice(&[x, y, w, h, ci]);
+                GPU_Data::Rect {
+                    x,
+                    y,
+                    w,
+                    h,
+                    color_index,
+                    fixed,
+                } => {
+                    rects.extend_from_slice(&[x, y, w, h, color_index, fixed]);
+                }
+                GPU_Data::Color { r, g, b, a } => {
+                    colors.extend_from_slice(&[r, g, b, a]);
                 }
             }
         }
-
         if !rects.is_empty() {
             self.append_rects(rects, gfx);
+        }
+        if !colors.is_empty() {
+            self.append_colors(colors, gfx);
         }
     }
 
     fn append_rects(&mut self, rects: Vec<f32>, gfx: &mut plinth_core::graphics::Graphics) {
         // If we don't have a rect buffer yet, we can't append
         if self.rect_buffer.is_none() {
+            self.init_rect_buffer(rects, gfx);
             return;
         }
 
@@ -377,13 +398,13 @@ impl GPU_Resources {
         let current_rect_count = self.rect_count.unwrap_or(0);
 
         // Calculate the new rect count
-        let new_rects_count = rects.len() / 5; // Each rectangle has 5 values
+        let new_rects_count = rects.len() / 6; // Each rectangle has 6 values
         let new_total_count = current_rect_count + (new_rects_count as u32);
 
         // Check if we need to resize the buffer
         if let Some(rect_buffer) = &self.rect_buffer {
             let current_buffer_size = rect_buffer.size();
-            let needed_size = (new_total_count as usize * 5 * std::mem::size_of::<f32>()) as u64;
+            let needed_size = (new_total_count as usize * 6 * std::mem::size_of::<f32>()) as u64;
 
             if needed_size > current_buffer_size {
                 // Need to create a larger buffer
@@ -409,7 +430,7 @@ impl GPU_Resources {
                 gfx.queue.submit(std::iter::once(encoder.finish()));
 
                 // Write the new data to the new buffer
-                let offset = (current_rect_count * 5 * std::mem::size_of::<f32>() as u32) as u64;
+                let offset = (current_rect_count * 6 * std::mem::size_of::<f32>() as u32) as u64;
                 gfx.queue
                     .write_buffer(&new_buffer, offset, bytemuck::cast_slice(&rects));
 
@@ -417,7 +438,7 @@ impl GPU_Resources {
                 self.rect_buffer = Some(new_buffer);
             } else {
                 // Buffer is large enough, just write the new data
-                let offset = (current_rect_count * 5 * std::mem::size_of::<f32>() as u32) as u64;
+                let offset = (current_rect_count * 6 * std::mem::size_of::<f32>() as u32) as u64;
                 gfx.queue
                     .write_buffer(rect_buffer, offset, bytemuck::cast_slice(&rects));
             }
@@ -425,5 +446,64 @@ impl GPU_Resources {
 
         // Update the rect count
         self.rect_count = Some(new_total_count);
+    }
+
+    fn append_colors(&mut self, colors: Vec<f32>, gfx: &mut plinth_core::graphics::Graphics) {
+        // If we don't have a color buffer yet, we can't append
+        if self.color_buffer.is_none() {
+            self.init_color_buffer(colors, gfx);
+            return;
+        }
+
+        // Get the current color count
+        let current_color_count = self.color_buffer.as_ref().map_or(0, |buf| {
+            buf.size() as usize / (3 * std::mem::size_of::<f32>())
+        });
+
+        // Calculate the new total count
+        let new_colors_count = colors.len() / 3; // Each color has 3 values (r, g, b)
+        let new_total_count = current_color_count + new_colors_count;
+
+        // Check if we need to resize the buffer
+        if let Some(color_buffer) = &self.color_buffer {
+            let current_buffer_size = color_buffer.size();
+            let needed_size = (new_total_count * 3 * std::mem::size_of::<f32>()) as u64;
+
+            if needed_size > current_buffer_size {
+                // Need to create a larger buffer
+                let new_buffer = gfx.device.create_buffer(&BufferDescriptor {
+                    label: Some("Color Buffer (Resized)"),
+                    size: needed_size * 2, // Allocate extra space to reduce frequent resizing
+                    usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+                    mapped_at_creation: false,
+                });
+
+                // Create a command encoder to copy the old data
+                let mut encoder = gfx
+                    .device
+                    .create_command_encoder(&CommandEncoderDescriptor {
+                        label: Some("Color Buffer Copy Encoder"),
+                    });
+
+                // Copy existing data to the new buffer
+                encoder.copy_buffer_to_buffer(color_buffer, 0, &new_buffer, 0, current_buffer_size);
+
+                // Submit the copy command
+                gfx.queue.submit(std::iter::once(encoder.finish()));
+
+                // Write the new data to the new buffer
+                let offset = (current_color_count * 3 * std::mem::size_of::<f32>()) as u64;
+                gfx.queue
+                    .write_buffer(&new_buffer, offset, bytemuck::cast_slice(&colors));
+
+                // Replace the old buffer with the new one
+                self.color_buffer = Some(new_buffer);
+            } else {
+                // Buffer is large enough, just write the new data
+                let offset = (current_color_count * 3 * std::mem::size_of::<f32>()) as u64;
+                gfx.queue
+                    .write_buffer(color_buffer, offset, bytemuck::cast_slice(&colors));
+            }
+        }
     }
 }

@@ -9,6 +9,7 @@ use wgpu::{
     VertexFormat, VertexState, VertexStepMode,
 };
 
+use crate::gpu_data::GPU_Data;
 use crate::my_app::MyApp;
 use plinth_core::graphics::Graphics;
 use plinth_core::plinth_app::PlinthRenderer;
@@ -16,66 +17,46 @@ use plinth_util::logging::log;
 use std::borrow::Cow;
 use web_sys::window;
 static rectangles: u32 = 100;
-fn gen_rand_rects() -> Vec<f32> {
-    let mut res = vec![];
-    for i in 0..rectangles {
-        res.push((random() as f32 - 0.5) * 10.0);
-        res.push((random() as f32 - 0.5) * 0.0);
-        res.push(0.003);
-        res.push(0.04);
-        res.push(random() as f32 * rectangles as f32);
-    }
 
-    res
-}
-
-fn gen_rand_colors() -> Vec<f32> {
-    let mut res = vec![];
-    for i in 0..rectangles {
-        res.push(random() as f32);
-        res.push(random() as f32);
-        res.push(random() as f32);
-        res.push(1.0);
-    }
-
-    res
-}
 impl PlinthRenderer for MyApp {
     fn create_pipeline(&mut self, gfx: &mut Graphics) -> RenderPipeline {
+        // create initial data, this will move to a function later
+        // define the first color in our palette
+        self.data.queue.push_back(GPU_Data::Color {
+            r: 0.4,
+            g: 0.4,
+            b: 0.4,
+            a: 1.0,
+        });
+        // define the log color
+        self.data.queue.push_back(GPU_Data::Color {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        });
+        // // create fixed rectangle, this is our timeline
+        self.data.queue.push_back(GPU_Data::Rect {
+            x: -1.0,
+            y: 0.002,
+            w: 2.0,
+            h: 0.004,
+            color_index: 0.0,
+            fixed: 1.0,
+        });
+
         // Initialize shader
         self.gpu_resources.init_rect_shader(gfx);
 
-        // Initialize color buffer first (needed for pipeline layout)
-        self.gpu_resources.init_color_buffer(gen_rand_colors(), gfx);
-        // vec![
-        //     1.0, 0.0, 0.0, 1.0, // Red (index 0)
-        //     0.0, 1.0, 0.0, 1.0, // Green (index 1)
-        //     0.0, 0.0, 1.0, 1.0, // Blue (index 2)
-        //     0.7, 0.0, 1.0, 1.0, // Purple (index 3)
-        // ],
-        // gfx,
-        // );
-
-        // Initialize camera buffer with the camera from MyApp
+        // Initialize camera, color, and rect buffers
         self.gpu_resources.init_camera_buffer(&self.camera, gfx);
+        // Load initial data into these buffers
+        if !self.data.queue.is_empty() {
+            self.gpu_resources.process_queue(&mut self.data.queue, gfx);
+        }
 
         // Initialize combined bind group that includes both color and camera data
         self.gpu_resources.init_combined_bind_group(gfx);
-
-        // Initialize rectangle buffer with multiple rectangles
-        // Each rectangle has 5 values: x, y, width, height, color_index
-        let log_rects = self.data.get_log_rects(&self.camera);
-
-        log(format!("logs: {}", log_rects.len() / 5).as_str());
-        self.gpu_resources.init_rect_buffer(log_rects, gfx);
-        // vec![
-        //     -0.5, -0.5, 0.4, 0.4, 0.0, // Rectangle 1 (red)
-        //     0.5, -0.5, 0.4, 0.4, 1.0, // Rectangle 2 (green)
-        //     0.5, 0.5, 0.4, 0.4, 2.0, // Rectangle 3 (blue)
-        //     -0.5, 0.5, 0.4, 0.4, 3.0, // Rectangle 4 (purple)
-        // ],
-        // gfx,
-        // );
 
         // Initialize index buffer
         self.gpu_resources.init_index_buffer(gfx);
@@ -86,13 +67,6 @@ impl PlinthRenderer for MyApp {
     }
 
     fn render(&mut self, gfx: &mut Graphics) {
-        // // Update rectangle data directly in the existing buffer
-        // if let Some(rect_buffer) = &self.gpu_resources.rect_buffer {
-        //     let new_rect_data = self.data.get_log_rects(&self.camera);
-        //     log(format!("logs: {}", new_rect_data.len() / 5).as_str());
-        //     gfx.queue
-        //         .write_buffer(rect_buffer, 0, bytemuck::cast_slice(&new_rect_data));
-        // }
         if !self.data.queue.is_empty() {
             self.gpu_resources.process_queue(&mut self.data.queue, gfx);
         }

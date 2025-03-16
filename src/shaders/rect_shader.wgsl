@@ -9,11 +9,6 @@ var<storage, read> colors: array<vec4<f32>>;
 @group(0) @binding(1)
 var<uniform> camera: Camera;
 
-struct VertexInput {
-    @location(0) position: vec2<f32>,
-    @location(1) size: vec2<f32>,
-    @location(2) color_index: f32,
-}
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -26,6 +21,7 @@ fn vs_main(
     @location(0) position: vec2<f32>,
     @location(1) dimensions: vec2<f32>,
     @location(2) color_index: f32,
+    @location(3) fixed: f32,
 ) -> VertexOutput {
     // The four corners of our rectangle
     var positions = array<vec2<f32>, 4>(
@@ -39,8 +35,11 @@ fn vs_main(
     let camera_offset = vec2(camera.position/camera.scale, 0.0); // offset from camera
     let instance_offset = position; // offset of instance 
     let scaled_instance_offset = vec2(instance_offset.x/camera.scale, instance_offset.y);
-    let screen_pos = (vertex_pos * dimensions) + scaled_instance_offset  - camera_offset; // screen space position
+    var screen_pos = (vertex_pos * dimensions); // screen space position
     
+    if fixed == 0.0 {
+        screen_pos += scaled_instance_offset  - camera_offset;
+    }
     var output: VertexOutput;
     output.position = vec4<f32>(screen_pos, 0.0, 1.0);
     output.color_index = color_index;

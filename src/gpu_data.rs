@@ -7,18 +7,26 @@ pub enum GPU_Data {
         y: f32,
         w: f32,
         h: f32,
-        ci: f32,
+        color_index: f32,
+        fixed: f32,
+    },
+    Color {
+        r: f32,
+        g: f32,
+        b: f32,
+        a: f32,
     },
 }
 
 impl GPU_Data {
     pub fn from_log(log: &Log, camera: &Camera) -> Self {
-        return Self::Rect {
+        Self::Rect {
             x: (log.timestamp - camera.init_pos) as f32,
             y: 0.0,
             w: 0.003,
             h: 0.04,
-            ci: 0.0,
-        };
+            color_index: 1.0,
+            fixed: 0.0,
+        }
     }
 }
