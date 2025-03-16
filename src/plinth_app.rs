@@ -38,8 +38,11 @@ where
                 phase,
             } => match delta {
                 winit::event::MouseScrollDelta::PixelDelta(delta) => {
-                    self.h_scroll(-delta.x);
-                    self.v_scroll(delta.y);
+                    if delta.x.abs() > delta.y.abs() {
+                        self.h_scroll(-delta.x);
+                    } else {
+                        self.v_scroll(delta.y);
+                    }
                 }
                 _ => {}
             },

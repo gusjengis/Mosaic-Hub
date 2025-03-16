@@ -23,7 +23,7 @@ impl GPU_Data {
         Self::Rect {
             x: (log.timestamp - camera.init_pos) as f32,
             y: 0.0,
-            w: 0.003,
+            w: 0.001,
             h: 0.04,
             color_index: 1.0,
             fixed: 0.0,
