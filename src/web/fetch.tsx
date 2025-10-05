@@ -1,5 +1,6 @@
 export async function loadLogs() {
     let url = "http://35.155.119.40";
+    // let url = "localhost:8088";
     let endpoint = "logLoad";
 
     try {
